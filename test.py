@@ -21,8 +21,8 @@ season_name_to_id = {}
 postion_name_to_id = {}
 league_name_to_id = {}
 
-# Sample input data — replace this with actual file load
-with open("fbref_players copy.txt", "r", encoding="utf-8") as f:
+# Sample input data — replace this with actual file load~
+with open(r"C:\Users\zack2\OneDrive\Documents\GitHub\The-Separation-Game\fbref_players.txt", "r", encoding="utf-8") as f:
     raw_data = json.load(f)  # assuming it's stored as valid JSON
 
 for player_ext_id, player_data in raw_data.items():
