@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>The Separation Game</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Roboto', sans-serif; background: #f4f4f9; padding: 2rem; text-align: center; }
+    .form-container, .results { max-width: 900px; margin: auto; background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); margin-top: 1rem; }
+    label { display: block; margin-top: 1rem; font-weight: bold; }
+    select, button { width: 100%; padding: 0.6rem; margin-top: 0.3rem; border-radius: 4px; }
+    button { background: #007BFF; color: white; border: none; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    .path { background: #e7f3ff; padding: 1rem; margin-top: 1rem; border-left: 4px solid #3399ff; border-radius: 4px; text-align: left; }
+    a { color: #007BFF; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .player-selectors { display: flex; justify-content: space-between; gap: 2rem; }
+    .selector-box { flex: 1; }
+  </style>
+</head>
+<body>
+  <h1>The Separation Game</h1>
+  <div class="form-container">
+    <form id="linkForm">
+      <div class="player-selectors">
+        <div class="selector-box">
+          <h3>Player A</h3>
+          <label for="leagueA">League</label>
+          <select id="leagueA"><option value="">-- Select League --</option></select>
+
+          <label for="teamA">Team</label>
+          <select id="teamA"><option value="">-- Select Team --</option></select>
+
+          <label for="playerA">Player</label>
+          <select id="playerA"><option value="">-- Select Player A --</option></select>
+        </div>
+
+        <div class="selector-box">
+          <h3>Player B</h3>
+          <label for="leagueB">League</label>
+          <select id="leagueB"><option value="">-- Select League --</option></select>
+
+          <label for="teamB">Team</label>
+          <select id="teamB"><option value="">-- Select Team --</option></select>
+
+          <label for="playerB">Player</label>
+          <select id="playerB"><option value="">-- Select Player B --</option></select>
+        </div>
+      </div>
+
+      <button type="submit" style="margin-top: 2rem;">Find Connection</button>
+    </form>
+  </div>
+
+  <div class="results" id="results" style="display:none;"></div>
+
+  <script>
+    let filters = {};
+
+    async function loadFilters() {
+      const res = await fetch('http://localhost:5000/filters');
+      filters = await res.json();
+
+      const leagueSelects = [document.getElementById('leagueA'), document.getElementById('leagueB')];
+      leagueSelects.forEach(select => {
+        Object.keys(filters).sort().forEach(league => {
+          const option = document.createElement('option');
+          option.value = league;
+          option.textContent = league;
+          select.appendChild(option.cloneNode(true));
+        });
+      });
+    }
+
+    function setupSelectors(leagueId, teamId, playerId) {
+      document.getElementById(leagueId).addEventListener('change', function () {
+        const teams = filters[this.value] || {};
+        const teamSelect = document.getElementById(teamId);
+        teamSelect.innerHTML = '<option value="">-- Select Team --</option>';
+        Object.keys(teams).sort().forEach(team => {
+          const option = document.createElement('option');
+          option.value = team;
+          option.textContent = team;
+          teamSelect.appendChild(option);
+        });
+
+        document.getElementById(playerId).innerHTML = '<option value="">-- Select Player --</option>';
+      });
+
+      document.getElementById(teamId).addEventListener('change', function () {
+        const league = document.getElementById(leagueId).value;
+        const players = filters[league]?.[this.value] || [];
+        const playerSelect = document.getElementById(playerId);
+
+        playerSelect.innerHTML = '<option value="">-- Select Player --</option>';
+        players.forEach(name => {
+          const option = new Option(name, name);
+          playerSelect.add(option);
+        });
+      });
+    }
+
+    setupSelectors('leagueA', 'teamA', 'playerA');
+    setupSelectors('leagueB', 'teamB', 'playerB');
+
+    document.getElementById('linkForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const playerA = document.getElementById('playerA').value;
+      const playerB = document.getElementById('playerB').value;
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.style.display = 'block';
+      resultsDiv.innerHTML = '<p>Loading...</p>';
+
+      const res = await fetch('http://localhost:5000/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_a: playerA, player_b: playerB })
+      });
+
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) {
+        resultsDiv.innerHTML = `<p>No connections found.</p>`;
+        return;
+      }
+
+      data.sort((a, b) => a.links - b.links);
+      let html = `<h3>Connections Found</h3>`;
+      data.forEach((item, i) => {
+        const pathParts = item.path.split('→').map(part => {
+            const match = part.match(/^([^\(]+)/); // Gets the player name before the first (
+            const name = match ? match[1].trim() : part.trim();
+            const rest = part.replace(name, '').trim(); // The rest: (Club, League, Years)
+            return `<a href="https://www.google.com/search?q=${encodeURIComponent(name)}" target="_blank">${name}</a> ${rest}`;
+        });
+
+        html += `<div class="path"><strong>Connection #${i + 1} (${item.links} links):</strong><br>${pathParts.join(' → ')}</div>`;
+        });
+
+
+      resultsDiv.innerHTML = html;
+    });
+
+    loadFilters();
+  </script>
+</body>
+</html>

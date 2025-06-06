@@ -1,7 +1,8 @@
-
 # The Separation Game
 
 A soccer-based trivia and strategy web game where players try to connect two professional footballers through the shortest path of shared teammates, based on overlapping team history.
+## Working player link search HTML
+![image](https://github.com/user-attachments/assets/2c82ba30-7341-46b8-bd61-5edddc7f3c8a)
 
 ## Game Objective
 
@@ -78,7 +79,8 @@ Final score: 100 - 30 - 15 = 55
 
 ## Schema & Database Design
 
-View schema: [The Separation Game DB Diagram](https://dbdiagram.io/d/The-Separation-Game-DB-682539fa5b2fc4582fa96034)
+###Schema 
+![image](https://github.com/user-attachments/assets/8b2da8bc-e53d-4015-8220-4d6d47df012f)
 
 Key Tables:
 - `players`
