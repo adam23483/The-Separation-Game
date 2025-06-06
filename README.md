@@ -80,7 +80,7 @@ Final score: 100 - 30 - 15 = 55
 ## Schema & Database Design
 
 ###Schema 
-![image](https://github.com/user-attachments/assets/8b2da8bc-e53d-4015-8220-4d6d47df012f)
+![image]([https://github.com/user-attachments/assets/8b2da8bc-e53d-4015-8220-4d6d47df012f](https://github.com/adam23483/The-Separation-Game/blob/240965e1cc904b51b18a871da613bd9c238e6de2/Images/Schema.png))
 
 Key Tables:
 - `players`
