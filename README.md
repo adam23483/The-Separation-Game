@@ -1,6 +1,7 @@
 # The Separation Game
 
 A soccer-based trivia and strategy web game where players try to connect two professional footballers through the shortest path of shared teammates, based on overlapping team history.
+## Working player link search HTML
 ![image](https://github.com/user-attachments/assets/2c82ba30-7341-46b8-bd61-5edddc7f3c8a)
 ![image](https://github.com/user-attachments/assets/8b2da8bc-e53d-4015-8220-4d6d47df012f)
 
