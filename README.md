@@ -2,7 +2,7 @@
 
 A soccer-based trivia and strategy web game where players try to connect two professional footballers through the shortest path of shared teammates, based on overlapping team history.
 ## Working player link search HTML
-![image](https://github.com/user-attachments/assets/2c82ba30-7341-46b8-bd61-5edddc7f3c8a)
+![image](https://github.com/adam23483/The-Separation-Game/blob/f44ae8eb2f84aece219f23a663e2462e3cc36ac6/Images/testing%20api.png)
 
 ## Game Objective
 
