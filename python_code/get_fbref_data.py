@@ -72,7 +72,7 @@ def scrape_players_data(league_urls):
     headers = {'user-agent': 'Mozilla/5.0'}
 
     for url in league_urls:
-        time.sleep(random.randint(3, 10))
+        time.sleep(random.randint(5, 15))
         response = requests.get(url, headers=headers)
         if not response.ok:
             print(f"Failed to retrieve {url}")
@@ -134,6 +134,17 @@ def scrape_players_data(league_urls):
                                 },
                                 "seasons_played": {}
                             }
+                        else:
+                            # Fill missing info if any
+                            pinfo = players_dict[player_id]["player_info"]
+                            if not pinfo["name"] and name:
+                                pinfo["name"] = name
+                            if not pinfo["nation"] and nation:
+                                pinfo["nation"] = nation
+                            if not pinfo["age"] and age:
+                                pinfo["age"] = age
+                            if not pinfo["postions"] and position:
+                                pinfo["postions"] = position
 
                         if season not in players_dict[player_id]["seasons_played"]:
                             players_dict[player_id]["seasons_played"][season] = {"teams": {}}
@@ -216,10 +227,15 @@ def process_fbref_data(raw_data, output_path):
 # MAIN EXECUTION
 base_urls = [
     "https://fbref.com/en/comps/9/playingtime/Premier-League-Stats",
+    "https://fbref.com/en/comps/9/stats/Premier-League-Stats",
     "https://fbref.com/en/comps/12/playingtime/La-Liga-Stats",
+    "https://fbref.com/en/comps/12/stats/La-Liga-Stats",
     "https://fbref.com/en/comps/11/playingtime/Serie-A-Stats",
+    "https://fbref.com/en/comps/11/stats/Serie-A-Stats",
     "https://fbref.com/en/comps/20/playingtime/Bundesliga-Stats",
-    "https://fbref.com/en/comps/13/playingtime/Ligue-1-Stats"
+    "https://fbref.com/en/comps/20/stats/Bundesliga-Stats",
+    "https://fbref.com/en/comps/13/playingtime/Ligue-1-Stats",
+    "https://fbref.com/en/comps/13/stats/Ligue-1-Stats"
 ]
 
 start_year = 2024
@@ -228,9 +244,9 @@ last_year = 1988
 
 urls = get_stat_urls(base_urls, start_year, end_year, last_year)
 raw_data = scrape_players_data(urls)
-with open(r"C:\Users\zack2\OneDrive\Documents\GitHub\The-Separation-Game\fbref_players.json", "w") as f:
+with open(r"C:\Users\zack2\OneDrive\Documents\GitHub\The-Separation-Game\json_data\fbref_players.json", "w") as f:
     json.dump(raw_data, f, indent=2)
 
-process_fbref_data(raw_data, r"C:\Users\zack2\OneDrive\Documents\GitHub\The-Separation-Game\processed_fbref_data.json")
+process_fbref_data(raw_data, r"C:\Users\zack2\OneDrive\Documents\GitHub\The-Separation-Game\json_data\processed_fbref_data.json")
 
-subprocess.run(["python", r"C:\Users\zack2\OneDrive\Documents\GitHub\The-Separation-Game\sql_uplaod.py"])
+subprocess.run(["python", r"C:\Users\zack2\OneDrive\Documents\GitHub\The-Separation-Game\python_code\sql_uplaod.py"])

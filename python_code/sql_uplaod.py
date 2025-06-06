@@ -17,7 +17,7 @@ cursor.execute("DROP TABLE IF EXISTS leagues;")
 cursor.execute("DROP TABLE IF EXISTS positions;")
 
 # add JSON data
-with open('C:\\Users\\zack2\\OneDrive\\Documents\\GitHub\\The-Separation-Game\\processed_fbref_data.json', 'r') as f:
+with open('C:\\Users\\zack2\\OneDrive\\Documents\\GitHub\\The-Separation-Game\\json_data\\processed_fbref_data.json', 'r') as f:
     data = json.load(f)
 
 # create tables if they don't exist
