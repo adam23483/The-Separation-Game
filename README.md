@@ -1,4 +1,5 @@
 ![image](https://github.com/user-attachments/assets/8b2da8bc-e53d-4015-8220-4d6d47df012f)
+![image](https://github.com/user-attachments/assets/c5b152c1-0cb8-44df-b650-7860dc6f57e3)
 
 # The Separation Game
 
