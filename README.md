@@ -1,101 +1,118 @@
+
 # The Separation Game
 
-A soccer-based trivia and strategy web game where players try to connect two professional footballers through the shortest path of shared teammates, based on overlapping team history.
-## Working player link search HTML
-![image](https://github.com/adam23483/The-Separation-Game/blob/f44ae8eb2f84aece219f23a663e2462e3cc36ac6/Images/testing%20api.png)
+A web-based soccer connection game where users link two professional footballers through shared teammates, based on real-world club and season history.
 
-## Game Objective
+![Gameplay Preview](https://github.com/adam23483/The-Separation-Game/blob/f44ae8eb2f84aece219f23a663e2462e3cc36ac6/Images/testing%20api.png)
 
-Connect two players using the fewest possible intermediate player links (players who were teammates of both targets at different points in time).
+---
 
-## Gameplay
+## Table of Contents
+- [Objective](#objective)
+- [Gameplay Modes](#gameplay-modes)
+  - [Daily Challenge](#daily-challenge)
+  - [Challenge Mode](#challenge-mode)
+  - [Link Lookup](#link-lookup)
+  - [Leaderboard (Upcoming)](#leaderboard-upcoming)
+- [Scoring System](#scoring-system)
+- [Data Sources](#data-sources)
+- [Tech Stack](#tech-stack)
+- [Database Schema](#database-schema)
+- [Future Expansion](#future-expansion)
 
-- Core Challenge: Build a chain of player connections from Player A to Player B through overlapping club seasons.
-- At least one player must link the two.
-- Bonus Challenges:
-  - Identify an additional player that could link them
-  - Guess their manager during overlapping years
-  - Add players that would also form valid paths
-- Side Games:
-  - "Did they play on the same team?"
-  - "Who was their manager?"
+---
 
-## Example Challenge
+## Objective
+- Connect **Player A** to **Player B** through mutual teammates.
+- Use the fewest possible intermediate players.
+- Earn bonus points by identifying shared managers and accurate team-season ranges.
 
-**Goal**: Connect Ronaldinho to Kylian Mbappé
+---
 
-### Solution 1 (Shortest Path)
-```
-Ronaldinho → Lionel Messi → Kylian Mbappé  
-(1 player link)
-```
+## Gameplay Modes
+### Daily Challenge
+- Three unique player pairs generated daily.
+- Time-limited challenge with a global countdown.
+- Compete for high scores based on path efficiency and speed.
 
-### Solution 2 (Alternate Path)
-```
-Ronaldinho → Kaká → Luka Modrić → Kylian Mbappé  
-(3 player links)
-```
+### Challenge Mode
+- Randomly generate two players and manually build a connection path.
+- Immediate feedback and scoring.
+- Displays alternative valid paths after submission.
+
+### Link Lookup
+- Search for connection paths between any two players.
+- Explore historical paths without scoring constraints.
+
+### Leaderboard (Upcoming)
+- Global leaderboard tracking top scores.
+- Daily and all-time rankings planned for future updates.
+
+---
 
 ## Scoring System
+| Metric              | Penalty/Bonus                   |
+|---------------------|---------------------------------|
+| Extra Player Links   | -10 points per additional link  |
+| Time Taken           | -0.05 points per second         |
+| Manager Identified   | +10 points per correct manager  |
+| Accurate Year Ranges | Partial points based on accuracy|
 
-- Starting Score: 100 points  
-- Points Lost for Extra Links: -10 per additional player link  
-- Points Lost Over Time: -0.05 per second  
-
-### Example:
-- Your solution: 5 links (min was 2)
-- Time taken: 300 seconds
-
+### Example Calculation:
 ```
-Link penalty: (5 - 2) * 10 = 30  
-Time penalty: 300 * 0.05 = 15  
-Final score: 100 - 30 - 15 = 55
+Starting Score: 100
+Your Path: 5 links (Minimum Possible: 2)
+Time Taken: 300 seconds
+
+Link Penalty: (5 - 2) * 10 = 30
+Time Penalty: 300 * 0.05 = 15
+
+Final Score: 100 - 30 - 15 = 55
 ```
 
-## Bonus Points
+---
 
-- +10 points for identifying a manager for each link
-- Partial points for accurate year ranges (based on percentage of correct years)
+## Data Sources
+- FBref (Player appearance data)
+- Transfermarkt (Transfers, managers)
+- Wikipedia (Historical team data)
 
-## Data and Architecture
+Focus Areas:
+- Premier League, La Liga, Bundesliga, Serie A, Ligue 1
+- Planned expansion to South American, African, and Asian leagues
 
-### Sources:
-- FBref
-- Transfermarkt
-- Wikipedia
+---
 
-### Focus Areas:
-- Top 5 European Leagues: Premier League, La Liga, Bundesliga, Ligue 1, Serie A
-- Expand to: South America, Africa, Asia, etc.
+## Tech Stack
+- Python (Flask API)
+- JavaScript (Frontend interactivity)
+- MySQL Database
+- Web Scraping pipelines
+- HTML/CSS (Tailwind CSS framework)
+- Planned: Cloud deployment (AWS or Google Cloud), Leaderboards, Login System
 
-### Tech Stack:
-- Python
-- JavaScript / Node.js
-- SQL (local, then AWS/Google Cloud)
-- Web Scraping
-- GenAI integrations (optional)
-- Frontend UI (lightweight, user-friendly)
-- Leaderboards, group sessions, and login system
+---
 
-## Schema & Database Design
-
-### Schema
-![image](https://github.com/adam23483/The-Separation-Game/blob/240965e1cc904b51b18a871da613bd9c238e6de2/Images/Schema.png)
-
+## Database Schema
+![Database Schema](https://github.com/adam23483/The-Separation-Game/blob/240965e1cc904b51b18a871da613bd9c238e6de2/Images/Schema.png)
 
 Key Tables:
 - `players`
 - `teams`
 - `leagues`
 - `seasons`
-- `player_team_season`
+- `player_team_seasons`
 - `positions`
 - `nations`
 
-Includes appearance tracking, loan filters, January transfers, and historical changes (e.g., country splits).
+Supports appearance tracking, loans, January transfers, and historical changes (e.g., country splits).
+
+---
 
 ## Future Expansion
-
-- Add NFL, NBA, MLB, NHL versions
-- Expand player tracking to college/high school
-- Possible spin-off sites for each sport
+- Extend to other sports (NBA, NFL, MLB, NHL)
+- College and high school player tracking
+- Spin-off games/sites for other sports ecosystems
+- Enhanced multiplayer and group sessions
+- Advanced path scoring with AI-driven suggestions
+- Fully featured leaderboard with login authentication
