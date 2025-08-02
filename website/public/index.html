@@ -1,147 +1,304 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="bg-gray-900 text-white font-sans">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
   <title>The Separation Game</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Roboto', sans-serif; background: #f4f4f9; padding: 2rem; text-align: center; }
-    .form-container, .results { max-width: 900px; margin: auto; background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); margin-top: 1rem; }
-    label { display: block; margin-top: 1rem; font-weight: bold; }
-    select, button { width: 100%; padding: 0.6rem; margin-top: 0.3rem; border-radius: 4px; }
-    button { background: #007BFF; color: white; border: none; cursor: pointer; }
-    button:hover { background: #0056b3; }
-    .path { background: #e7f3ff; padding: 1rem; margin-top: 1rem; border-left: 4px solid #3399ff; border-radius: 4px; text-align: left; }
-    a { color: #007BFF; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .player-selectors { display: flex; justify-content: space-between; gap: 2rem; }
-    .selector-box { flex: 1; }
-  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h1>The Separation Game</h1>
-  <div class="form-container">
-    <form id="linkForm">
-      <div class="player-selectors">
-        <div class="selector-box">
-          <h3>Player A</h3>
-          <label for="leagueA">League</label>
-          <select id="leagueA"><option value="">-- Select League --</option></select>
+<body class="p-6">
 
-          <label for="teamA">Team</label>
-          <select id="teamA"><option value="">-- Select Team --</option></select>
+<header class="text-center py-16 px-4 bg-gray-800 rounded-xl shadow-lg mb-6">
+  <h1 class="text-4xl sm:text-5xl font-bold text-emerald-400 mb-4">The Separation Game</h1>
+  <p class="text-gray-300 text-lg mb-6">Connect any two soccer players through shared teammates.</p>
+  <div class="flex flex-wrap justify-center gap-4">
+    <a href="index.html" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-3 rounded">🏠 Home</a>
+    <a href="challenge_mode.html" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold px-6 py-3 rounded">🎮 Challenge Mode</a>
+    <a href="howtoplay.html" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold px-6 py-3 rounded">📘 How To Play</a>
+    <a href="lookup.html" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold px-6 py-3 rounded">🔍 Link Lookup</a>
+    <a href="leaderboard.html" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold px-6 py-3 rounded">🏆 Leaderboard</a>
+  </div>
+</header>
 
-          <label for="playerA">Player</label>
-          <select id="playerA"><option value="">-- Select Player A --</option></select>
-        </div>
+<main class="max-w-2xl mx-auto bg-gray-800 p-6 rounded-lg">
+  <h2 class="text-2xl font-bold text-indigo-400 mb-4">🎯 Daily Connection Challenge</h2>
+  <div id="dailyLinks" class="bg-gray-900 p-4 rounded text-sm text-gray-300 mb-4">Loading challenges...</div>
 
-        <div class="selector-box">
-          <h3>Player B</h3>
-          <label for="leagueB">League</label>
-          <select id="leagueB"><option value="">-- Select League --</option></select>
+  <label class="block text-sm mb-2">Choose a challenge:</label>
+  <select id="challengeSelector" onchange="changeChallenge()" class="w-full mb-4 bg-gray-700 text-white rounded px-2 py-1"></select>
 
-          <label for="teamB">Team</label>
-          <select id="teamB"><option value="">-- Select Team --</option></select>
+  <p class="text-sm text-gray-400 mb-4">⏱ Time Left: <span id="challengeTimer" class="text-emerald-400 font-semibold">--:--:--</span></p>
 
-          <label for="playerB">Player</label>
-          <select id="playerB"><option value="">-- Select Player B --</option></select>
-        </div>
-      </div>
-
-      <button type="submit" style="margin-top: 2rem;">Find Connection</button>
-    </form>
+  <div class="grid grid-cols-3 gap-2 mb-4">
+    <select id="leagueFilter" onchange="onLeagueChange()" class="bg-gray-700 text-white rounded px-2 py-1">
+      <option value="">All Leagues</option>
+    </select>
+    <select id="teamFilter" onchange="onTeamChange()" class="bg-gray-700 text-white rounded px-2 py-1">
+      <option value="">All Teams</option>
+    </select>
+    <select id="seasonFilter" onchange="updatePlayerOptions()" class="bg-gray-700 text-white rounded px-2 py-1">
+      <option value="">All Seasons</option>
+    </select>
   </div>
 
-  <div class="results" id="results" style="display:none;"></div>
+  <input id="dailyPlayerInput" type="text" list="playerList" placeholder="Type player name..." class="w-full px-3 py-2 rounded bg-gray-900 border border-gray-600 placeholder-gray-400 text-white mb-3">
+  <datalist id="playerList"></datalist>
 
-  <script>
-    let filters = {};
+  <div class="flex gap-2 mb-4">
+    <button onclick="addToDailyPath()" class="bg-emerald-600 px-3 py-2 rounded">Add</button>
+    <button onclick="undoDailyPath()" class="bg-yellow-600 px-3 py-2 rounded">Undo</button>
+    <button onclick="resetDailyPath()" class="bg-red-600 px-3 py-2 rounded">Reset</button>
+  </div>
 
-    async function loadFilters() {
-      const res = await fetch('http://localhost:5000/filters');
-      filters = await res.json();
+  <p class="font-semibold">Current Path:</p>
+  <div id="dailyPathDisplay" class="min-h-[40px] font-bold text-lg text-emerald-300 mb-4">(Empty)</div>
+  <button onclick="submitDailyPath()" class="bg-indigo-600 px-5 py-2 rounded text-white">Submit Daily Path</button>
 
-      const leagueSelects = [document.getElementById('leagueA'), document.getElementById('leagueB')];
-      leagueSelects.forEach(select => {
-        Object.keys(filters).sort().forEach(league => {
-          const option = document.createElement('option');
-          option.value = league;
-          option.textContent = league;
-          select.appendChild(option.cloneNode(true));
-        });
-      });
-    }
+  <div id="dailyScore" class="result-box mt-6 hidden text-left"></div>
+</main>
 
-    function setupSelectors(leagueId, teamId, playerId) {
-      document.getElementById(leagueId).addEventListener('change', function () {
-        const teams = filters[this.value] || {};
-        const teamSelect = document.getElementById(teamId);
-        teamSelect.innerHTML = '<option value="">-- Select Team --</option>';
-        Object.keys(teams).sort().forEach(team => {
-          const option = document.createElement('option');
-          option.value = team;
-          option.textContent = team;
-          teamSelect.appendChild(option);
-        });
+<script>
+let filters = {};
+let dailyChallengePath = [];
+let samplePairs = [];
+let currentDailyPair = [];
+let selectedChallengeIndex = 0;
+let challengeExpiryTime = null;
+let countdownInterval = null;
 
-        document.getElementById(playerId).innerHTML = '<option value="">-- Select Player --</option>';
-      });
+function populateFilters() {
+  const leagueFilter = document.getElementById('leagueFilter');
+  for (const league in filters) {
+    let opt = document.createElement('option');
+    opt.value = league;
+    opt.textContent = league;
+    leagueFilter.appendChild(opt);
+  }
+}
 
-      document.getElementById(teamId).addEventListener('change', function () {
-        const league = document.getElementById(leagueId).value;
-        const players = filters[league]?.[this.value] || [];
-        const playerSelect = document.getElementById(playerId);
+function updatePlayerOptions() {
+  const league = document.getElementById('leagueFilter').value;
+  const team = document.getElementById('teamFilter').value;
+  const season = document.getElementById('seasonFilter').value;
+  const playerList = document.getElementById('playerList');
+  let playerSet = new Set();
 
-        playerSelect.innerHTML = '<option value="">-- Select Player --</option>';
-        players.forEach(name => {
-          const option = new Option(name, name);
-          playerSelect.add(option);
-        });
-      });
-    }
-
-    setupSelectors('leagueA', 'teamA', 'playerA');
-    setupSelectors('leagueB', 'teamB', 'playerB');
-
-    document.getElementById('linkForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const playerA = document.getElementById('playerA').value;
-      const playerB = document.getElementById('playerB').value;
-      const resultsDiv = document.getElementById('results');
-      resultsDiv.style.display = 'block';
-      resultsDiv.innerHTML = '<p>Loading...</p>';
-
-      const res = await fetch('http://localhost:5000/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player_a: playerA, player_b: playerB })
-      });
-
-      const data = await res.json();
-      if (!Array.isArray(data) || data.length === 0) {
-        resultsDiv.innerHTML = `<p>No connections found.</p>`;
-        return;
+  for (const l in filters) {
+    if (league && l !== league) continue;
+    for (const t in filters[l]) {
+      if (team && t !== team) continue;
+      for (const s in filters[l][t]) {
+        if (season && s !== season) continue;
+        filters[l][t][s].forEach(p => playerSet.add(p));
       }
+    }
+  }
 
-      data.sort((a, b) => a.links - b.links);
-      let html = `<h3>Connections Found</h3>`;
-      data.forEach((item, i) => {
-        const pathParts = item.path.split('→').map(part => {
-            const match = part.match(/^([^\(]+)/); // Gets the player name before the first (
-            const name = match ? match[1].trim() : part.trim();
-            const rest = part.replace(name, '').trim(); // The rest: (Club, League, Years)
-            return `<a href="https://www.google.com/search?q=${encodeURIComponent(name)}" target="_blank">${name}</a> ${rest}`;
-        });
+  // Update player list
+  playerList.innerHTML = '';
+  Array.from(playerSet).sort().forEach(p => {
+    let opt = document.createElement('option');
+    opt.value = p;
+    playerList.appendChild(opt);
+  });
+}
 
-        html += `<div class="path"><strong>Connection #${i + 1} (${item.links} links):</strong><br>${pathParts.join(' → ')}</div>`;
-        });
+function updateTeamAndSeasonOptions(league, selectedTeam) {
+  const teamFilter = document.getElementById('teamFilter');
+  const seasonFilter = document.getElementById('seasonFilter');
 
+  const prevSelectedTeam = teamFilter.value;
+  const prevSelectedSeason = seasonFilter.value;
 
-      resultsDiv.innerHTML = html;
-    });
+  teamFilter.innerHTML = '<option value="">All Teams</option>';
+  seasonFilter.innerHTML = '<option value="">All Seasons</option>';
 
-    loadFilters();
-  </script>
+  if (league) {
+    for (const t in filters[league]) {
+      let opt = document.createElement('option');
+      opt.value = t;
+      opt.textContent = t;
+      if (t === prevSelectedTeam) opt.selected = true;
+      teamFilter.appendChild(opt);
+    }
+  }
+
+  const activeTeam = selectedTeam || teamFilter.value;
+
+  if (league && activeTeam && filters[league][activeTeam]) {
+    for (const s in filters[league][activeTeam]) {
+      let opt = document.createElement('option');
+      opt.value = s;
+      opt.textContent = s;
+      if (s === prevSelectedSeason) opt.selected = true;
+      seasonFilter.appendChild(opt);
+    }
+  }
+}
+
+function onLeagueChange() {
+  const league = document.getElementById('leagueFilter').value;
+  updateTeamAndSeasonOptions(league, null);
+  updatePlayerOptions();
+}
+
+function onTeamChange() {
+  const league = document.getElementById('leagueFilter').value;
+  const team = document.getElementById('teamFilter').value;
+  updateTeamAndSeasonOptions(league, team);
+  updatePlayerOptions();
+}
+
+function renderPairs() {
+  const container = document.getElementById('dailyLinks');
+  const selector = document.getElementById('challengeSelector');
+  container.innerHTML = '';
+  selector.innerHTML = '';
+
+  samplePairs.forEach((pair, idx) => {
+    const pa = pair.player_a;
+    const pb = pair.player_b;
+
+    const formatTeams = teams => teams.map(t =>
+      `<li>${t.team} - ${t.league} (${t.season_range})</li>`
+    ).join('');
+
+    container.innerHTML += `
+      <div class="border-b border-gray-700 pb-4 mb-2">
+        <p class="font-bold text-indigo-300">Challenge ${idx + 1}</p>
+        <p class="font-bold text-indigo-300 text-xl">${pa.name} ↔ ${pb.name}</p>
+        <div class="mt-2">
+          <p class="font-semibold">${pa.name}:</p>
+          <ul class="ml-4 list-disc">${formatTeams(pa.teams)}</ul>
+          <p class="font-semibold mt-2">${pb.name}:</p>
+          <ul class="ml-4 list-disc">${formatTeams(pb.teams)}</ul>
+        </div>
+      </div>
+    `;
+
+    let opt = document.createElement('option');
+    opt.value = idx;
+    opt.textContent = `Challenge ${idx + 1}`;
+    selector.appendChild(opt);
+  });
+
+  changeChallenge();
+}
+
+function startGlobalCountdown() {
+  clearInterval(countdownInterval);
+  countdownInterval = setInterval(() => {
+    const nowUTC = new Date(new Date().toUTCString());
+    const expiryUTC = new Date(challengeExpiryTime);
+    let diff = Math.max(0, expiryUTC - nowUTC);
+
+    const h = String(Math.floor(diff / 3600000)).padStart(2, '0');
+    const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+    const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+
+    document.getElementById('challengeTimer').textContent = `${h}:${m}:${s}`;
+
+    if (diff <= 0) {
+      clearInterval(countdownInterval);
+      alert("Daily Challenge Expired. Reloading...");
+      location.reload();
+    }
+  }, 1000);
+}
+
+function changeChallenge() {
+  selectedChallengeIndex = +document.getElementById('challengeSelector').value;
+  const pathStr = samplePairs[selectedChallengeIndex].path;
+  const names = pathStr.split(' → ').map(s => s.split(' (')[0]);
+  currentDailyPair = [names[0], names[names.length - 1]];
+  resetDailyPath();
+}
+
+function addToDailyPath() {
+  const name = document.getElementById('dailyPlayerInput').value.trim();
+  if (dailyChallengePath.length >= 3) return alert('Up to 3 players only.');
+  if (name && !dailyChallengePath.includes(name)) {
+    dailyChallengePath.push(name);
+    updateDailyDisplay();
+  }
+  document.getElementById('dailyPlayerInput').value = '';
+}
+
+function undoDailyPath() {
+  dailyChallengePath.pop();
+  updateDailyDisplay();
+}
+
+function resetDailyPath() {
+  dailyChallengePath = [];
+  updateDailyDisplay();
+}
+
+function updateDailyDisplay() {
+  const div = document.getElementById('dailyPathDisplay');
+  div.textContent = dailyChallengePath.length
+    ? [currentDailyPair[0], ...dailyChallengePath, currentDailyPair[1]].join(' → ')
+    : '(Empty)';
+}
+
+function submitDailyPath() {
+  if (dailyChallengePath.length !== 3) return alert('Submit exactly 3 players.');
+  const path = [currentDailyPair[0], ...dailyChallengePath, currentDailyPair[1]];
+
+  fetch('/score_challenge', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      player_a: path[0],
+      player_b: path[path.length - 1],
+      path: path.join(' → '),
+      time: 0
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    const scoreDiv = document.getElementById('dailyScore');
+    scoreDiv.classList.remove('hidden');
+    const breakdown = data.link_breakdown.map(l =>
+      `<li>${l.valid ? '✅' : '❌'} ${l.from} → ${l.to}</li>`
+    ).join('');
+    scoreDiv.innerHTML = `
+      <p><strong>Your Path:</strong> ${data.cleaned_path.join(' → ')}</p>
+      <p>Links: ${data.user_links_count}</p>
+      <p>Time: ${data.time_count}s</p>
+      <p class="text-emerald-400 font-bold text-lg">Score: ${data.final_score}</p>
+      <ul class="ml-4 list-disc text-sm">${breakdown}</ul>
+    `;
+  });
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    console.log("Fetching filters and daily challenges...");
+    const [filterRes, challengeRes] = await Promise.all([
+      fetch('/filters'),
+      fetch('/daily_challenges')
+    ]);
+    console.log("Received responses from APIs.");
+
+    filters = await filterRes.json();
+    const challengeData = await challengeRes.json();
+
+    samplePairs = challengeData.pairs;
+    challengeExpiryTime = challengeData.expires;
+
+    console.log("Challenge expires at:", challengeExpiryTime);
+
+    populateFilters();
+    updatePlayerOptions();
+    renderPairs();
+    startGlobalCountdown();
+
+  } catch (err) {
+    console.error('Failed to load filters or challenges:', err);
+    document.getElementById('dailyLinks').innerHTML = '<p>Error loading challenges.</p>';
+  }
+});
+</script>
+
 </body>
 </html>

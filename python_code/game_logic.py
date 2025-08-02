@@ -1,3 +1,4 @@
+# --- game_logic.py (Corrected) ---
 import mysql.connector
 from collections import defaultdict, deque
 
@@ -22,12 +23,41 @@ def find_k_paths(graph, start, goal, k=5, max_depth=5):
     return all_paths
 
 def display_path_details(path, player_meta):
-    details = []
-    for player_id in path:
-        record = player_meta[player_id][0]  # First occurrence (can be improved to best-match later)
-        season_range = record['season_range']
-        details.append(f"{record['name']} ({record['team']}, {record['league']}, {season_range})")
-    return " → ".join(details)
+    def linkify(name):
+        return f'<a href="https://www.google.com/search?q={name.replace(" ", "+")}" target="_blank">{name}</a>'
+
+    detailed_steps = []
+    for i in range(len(path) - 1):
+        a_records = player_meta.get(path[i], [])
+        b_records = player_meta.get(path[i + 1], [])
+
+        if not a_records or not b_records:
+            print(f"[ERROR] Missing metadata for IDs: {path[i]} or {path[i+1]}")
+            continue
+
+        a_record = a_records[0]
+        b_record = b_records[0]
+
+        shared_team = None
+        for a in a_records:
+            for b in b_records:
+                if a['team'] == b['team'] and a['league'] == b['league']:
+                    shared_team = (a, b)
+                    break
+            if shared_team:
+                break
+
+        if shared_team:
+            a, b = shared_team
+            detailed_steps.append(
+                f"{linkify(a['name'])} ({a['team']}, {a['league']}, {a['season_range']}) → {linkify(b['name'])} ({b['team']}, {b['league']}, {b['season_range']})"
+            )
+        else:
+            detailed_steps.append(
+                f"{linkify(a_record['name'])} ({a_record['team']}, {a_record['league']}, {a_record['season_range']}) → {linkify(b_record['name'])} ({b_record['team']}, {b_record['league']}, {b_record['season_range']})"
+            )
+
+    return detailed_steps
 
 def initialize_game_data():
     conn = mysql.connector.connect(
@@ -38,11 +68,9 @@ def initialize_game_data():
     )
     cursor = conn.cursor(dictionary=True)
 
-    # Get season map
     cursor.execute("SELECT season_id, season FROM seasons")
     season_map = {row['season_id']: row['season'] for row in cursor.fetchall()}
 
-    # Get player-team-season data
     cursor.execute("""
         SELECT pts.player_id, p.player_name, t.team_name, l.league_name, pts.season_id, pts.team_id
         FROM player_team_seasons pts
@@ -52,7 +80,6 @@ def initialize_game_data():
     """)
     rows = cursor.fetchall()
 
-    # Build structures
     graph = defaultdict(set)
     team_season_players = defaultdict(list)
     player_meta = defaultdict(list)
@@ -67,14 +94,15 @@ def initialize_game_data():
         team_season_players[key].append(player_id)
         player_team_seasons[(player_id, team_id)].add(season_name)
 
-    # Compute season ranges
     player_team_ranges = {}
     for (player_id, team_id), seasons in player_team_seasons.items():
         sorted_seasons = sorted(seasons)
-        season_range = f"{sorted_seasons[0]} to {sorted_seasons[-1]}" if len(sorted_seasons) > 1 else sorted_seasons[0]
+        if len(sorted_seasons) == 1:
+            season_range = sorted_seasons[0]
+        else:
+            season_range = f"{sorted_seasons[0]} to {sorted_seasons[-1]}"
         player_team_ranges[(player_id, team_id)] = season_range
 
-    # Fill player metadata
     for row in rows:
         player_id = row['player_id']
         team_id = row['team_id']
@@ -85,19 +113,18 @@ def initialize_game_data():
             "season_range": player_team_ranges[(player_id, team_id)]
         })
 
-    # Build teammate graph
     for players in team_season_players.values():
         for i in range(len(players)):
             for j in range(i + 1, len(players)):
                 graph[players[i]].add(players[j])
                 graph[players[j]].add(players[i])
 
-    # Create name → ID map
     name_to_id = {}
     for player_id, entries in player_meta.items():
         for entry in entries:
             name_to_id[entry['name'].lower()] = player_id
 
+    conn.close()
     return graph, player_meta, name_to_id
 
 def find_player_connections(player_a, player_b, graph, player_meta, name_to_id, k=5):
@@ -111,9 +138,14 @@ def find_player_connections(player_a, player_b, graph, player_meta, name_to_id, 
     id_b = name_to_id[player_b]
 
     paths = find_k_paths(graph, id_a, id_b, k=k)
-    result = [{
-        "path": display_path_details(path, player_meta),
-        "links": len(path) - 1
-    } for path in paths]
 
-    return result if result else {"message": "No connection found."}
+    valid_paths = []
+    for path in paths:
+        if all(pid in player_meta for pid in path):
+            valid_paths.append({
+                "path": path,  # Return raw path of IDs
+                "links": len(path) - 1
+            })
+
+    return valid_paths if valid_paths else {"message": "No connection found."}
+

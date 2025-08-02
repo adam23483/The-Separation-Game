@@ -20,9 +20,61 @@ cursor.execute("DROP TABLE IF EXISTS positions;")
 with open('C:\\Users\\zack2\\OneDrive\\Documents\\GitHub\\The-Separation-Game\\json_data\\processed_fbref_data.json', 'r') as f:
     data = json.load(f)
 
+# Process seasons to split ranges into individual years
+season_range_to_ids = {}
+new_seasons = []
+new_season_id = 1
+
+for season_entry in data['seasons']:
+    season_range = season_entry['season']  # e.g., '2025-2026'
+    start_year, end_year = map(int, season_range.split('-'))
+
+    # Add start year
+    season_range_to_ids[(season_entry['season_id'], start_year)] = new_season_id
+    new_seasons.append({"season_id": new_season_id, "season": str(start_year)})
+    new_season_id += 1
+
+    # Add end year
+    season_range_to_ids[(season_entry['season_id'], end_year)] = new_season_id
+    new_seasons.append({"season_id": new_season_id, "season": str(end_year)})
+    new_season_id += 1
+
+# Replace seasons with expanded ones
+data['seasons'] = new_seasons
+
+# Rebuild player_team_seasons to reference individual seasons and include position_id and league_id
+new_player_team_seasons = []
+pts_id = 1
+
+player_id_to_position = {player['player_id']: player['player_positions'] for player in data['players']}
+team_id_to_league = {team['team_id']: team['league_id'] for team in data['teams']}
+
+for pts in data['player_team_seasons']:
+    original_season_id = pts['season_id']
+    player_id = pts['player_id']
+    team_id = pts['team_id']
+
+    position_id = player_id_to_position.get(player_id)
+    league_id = team_id_to_league.get(team_id)
+
+    for (orig_id, year), new_id in season_range_to_ids.items():
+        if orig_id == original_season_id:
+            new_entry = {
+                'player_team_season_id': pts_id,
+                'player_id': player_id,
+                'team_id': team_id,
+                'season_id': new_id,
+                'position_id': position_id,
+                'league_id': league_id
+            }
+            new_player_team_seasons.append(new_entry)
+            pts_id += 1
+
+data['player_team_seasons'] = new_player_team_seasons
+
 # create tables if they don't exist
 table_definitions = {
-        "leagues": """
+    "leagues": """
         CREATE TABLE IF NOT EXISTS leagues (
             league_id INT PRIMARY KEY,
             league_name VARCHAR(255)
@@ -35,7 +87,6 @@ table_definitions = {
             team_ext_id VARCHAR(32),
             league_id INT,
             FOREIGN KEY (league_id) REFERENCES leagues(league_id)
-            
         )
     """,
     "seasons": """
@@ -50,7 +101,7 @@ table_definitions = {
             position VARCHAR(64)
         )
     """,
-        "players": """
+    "players": """
         CREATE TABLE IF NOT EXISTS players (
             player_id  INT PRIMARY KEY,
             player_name VARCHAR(255),
@@ -61,7 +112,6 @@ table_definitions = {
             FOREIGN KEY (player_positions) REFERENCES positions(position_id)
         )
     """,
-
     "player_team_seasons": """
         CREATE TABLE IF NOT EXISTS player_team_seasons (
             player_team_season_id INT PRIMARY KEY,
@@ -84,13 +134,12 @@ def insert_data(table_name, records):
     if not records:
         print(f"No data to insert for table {table_name}")
         return
-    
-    # insert data into a table
+
     columns = records[0].keys()
     placeholders = ', '.join(['%s'] * len(columns))
     column_names = ', '.join(columns)
     sql = f"INSERT INTO {table_name} ({column_names}) VALUES ({placeholders})"
-    
+
     values = [tuple(record[col] for col in columns) for record in records]
     cursor.executemany(sql, values)
     print(f"Inserted {cursor.rowcount} rows into {table_name}")
@@ -100,7 +149,7 @@ for table_name, ddl in table_definitions.items():
     cursor.execute(ddl)
     print(f"Ensured table exists: {table_name}")
 
-# insert data into a table
+# insert data
 insert_data('positions', data.get('positions', []))
 insert_data('leagues', data.get('leagues', []))
 insert_data('teams', data.get('teams', []))
@@ -108,7 +157,7 @@ insert_data('seasons', data.get('seasons', []))
 insert_data('players', data.get('players', []))
 insert_data('player_team_seasons', data.get('player_team_seasons', []))
 
-# insert data into a table
+# commit and close
 conn.commit()
 cursor.close()
 conn.close()

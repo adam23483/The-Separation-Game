@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-gray-900 text-white font-sans">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Separation Game</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="p-6">
+
+<header class="text-center py-16 px-4 bg-gray-800 rounded-xl shadow-lg mb-6">
+  <h1 class="text-4xl sm:text-5xl font-bold text-emerald-400 mb-4">The Separation Game</h1>
+  <p class="text-gray-300 text-lg mb-6">Connect any two soccer players through shared teammates.</p>
+  <div class="flex flex-wrap justify-center gap-4">
+    <a href="index.html" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-3 rounded">🏠 Home</a>
+    <a href="challenge_mode.html" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold px-6 py-3 rounded">🎮 Challenge Mode</a>
+    <a href="howtoplay.html" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold px-6 py-3 rounded">📘 How To Play</a>
+    <a href="lookup.html" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold px-6 py-3 rounded">🔍 Link Lookup</a>
+    <a href="leaderboard.html" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold px-6 py-3 rounded">🏆 Leaderboard</a>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto bg-gray-800 p-6 rounded-lg">
+  <h2 class="text-2xl font-bold text-indigo-400 mb-4">🎯 Daily Connection Challenge</h2>
+  <div id="dailyChallenges" class="space-y-6"></div>
+  <p class="text-sm text-gray-400 mt-6">⏳ New set in: <span id="countdown" class="text-emerald-400 font-semibold">--:--:--</span></p>
+</main>
+
+<datalist id="playerList"></datalist>
+
+<script>
+let filters = {};
+let dailyChallenges = [];
+let expiryTime = null;
+const paths = {};
+
+function formatTeams(teams) {
+  return teams.map(t => `<li>${t.team} - ${t.league} <span class='text-gray-400'>(${t.season_range})</span></li>`).join('');
+}
+
+function renderChallenges() {
+  const container = document.getElementById('dailyChallenges');
+  container.innerHTML = '';
+
+  dailyChallenges.forEach((item, index) => {
+    const div = document.createElement('div');
+    div.className = 'bg-gray-900 p-4 rounded shadow';
+    div.innerHTML = `
+      <p class="text-xl font-bold text-indigo-300 mb-2">Challenge ${index + 1}</p>
+      <p class="text-lg font-semibold">${item.player_a.name} ↔ ${item.player_b.name}</p>
+      <div class="mt-2 text-sm">
+        <p class="font-semibold">${item.player_a.name}:</p>
+        <ul class="ml-4 list-disc">${formatTeams(item.player_a.teams)}</ul>
+        <p class="font-semibold mt-2">${item.player_b.name}:</p>
+        <ul class="ml-4 list-disc">${formatTeams(item.player_b.teams)}</ul>
+      </div>
+      <div class="mt-4">
+        <input id="input-${index}" type="text" list="playerList" placeholder="Type player name..." class="w-full px-3 py-2 rounded bg-gray-800 border border-gray-600 placeholder-gray-400 text-white mb-2">
+        <div class="flex gap-2">
+          <button onclick="addToPath(${index})" class="bg-emerald-600 px-3 py-2 rounded">Add</button>
+          <button onclick="undoPath(${index})" class="bg-yellow-600 px-3 py-2 rounded">Undo</button>
+          <button onclick="resetPath(${index})" class="bg-red-600 px-3 py-2 rounded">Reset</button>
+        </div>
+        <p class="font-semibold mt-2">Current Path:</p>
+        <div id="pathDisplay-${index}" class="min-h-[40px] font-bold text-lg text-emerald-300">(Empty)</div>
+        <button onclick="submitPath(${index})" class="bg-indigo-600 px-5 py-2 rounded text-white mt-2">Submit Path</button>
+        <div id="score-${index}" class="mt-4 hidden text-sm text-left"></div>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function addToPath(idx) {
+  const input = document.getElementById(`input-${idx}`).value.trim();
+  if (!paths[idx]) paths[idx] = [];
+  if (input && !paths[idx].includes(input)) {
+    paths[idx].push(input);
+    updateDisplay(idx);
+  }
+  document.getElementById(`input-${idx}`).value = '';
+}
+
+function undoPath(idx) {
+  if (paths[idx]) paths[idx].pop();
+  updateDisplay(idx);
+}
+
+function resetPath(idx) {
+  paths[idx] = [];
+  updateDisplay(idx);
+}
+
+function updateDisplay(idx) {
+  const pA = dailyChallenges[idx].player_a.name;
+  const pB = dailyChallenges[idx].player_b.name;
+  const path = paths[idx] || [];
+  document.getElementById(`pathDisplay-${idx}`).textContent = path.length ? [pA, ...path, pB].join(' → ') : '(Empty)';
+}
+
+function submitPath(idx) {
+  const pathArray = [dailyChallenges[idx].player_a.name, ...(paths[idx] || []), dailyChallenges[idx].player_b.name];
+  fetch('/score_challenge', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      player_a: pathArray[0],
+      player_b: pathArray[pathArray.length - 1],
+      path: pathArray.join(' → '),
+      time: 60
+    })
+  }).then(res => res.json()).then(data => {
+    const resBox = document.getElementById(`score-${idx}`);
+    let breakdown = data.link_breakdown.map(l => `${l.valid ? '✅' : '❌'} ${l.from} → ${l.to}`).join('<br>');
+    resBox.classList.remove('hidden');
+    resBox.innerHTML = `
+      <p><strong>Your Path:</strong> ${data.cleaned_path.join(' → ')}</p>
+      <p>Links: ${data.user_links_count}</p>
+      <p>Time: ${data.time_count}s</p>
+      <p class="text-emerald-400 font-bold text-lg">Score: ${data.final_score}</p>
+      <p class="mt-2 font-semibold">Link Breakdown:</p>
+      <div class="ml-4">${breakdown}</div>
+    `;
+  });
+}
+
+function startCountdown() {
+  function tick() {
+    const rem = new Date(expiryTime) - Date.now();
+    if (rem <= 0) return location.reload();
+    const h = String(Math.floor(rem / 3600000)).padStart(2, '0');
+    const m = String(Math.floor((rem % 3600000) / 60000)).padStart(2, '0');
+    const s = String(Math.floor((rem % 60000) / 1000)).padStart(2, '0');
+    document.getElementById("countdown").textContent = `${h}:${m}:${s}`;
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  const [filterRes, challengeRes] = await Promise.all([
+    fetch('/filters'),
+    fetch('/daily_challenges')
+  ]);
+  filters = await filterRes.json();
+  const challengeData = await challengeRes.json();
+
+  dailyChallenges = challengeData.pairs;
+  expiryTime = challengeData.expires;
+
+  if (dailyChallenges.length === 0) {
+    document.getElementById('dailyChallenges').innerHTML = '<p>No challenges available.</p>';
+  } else {
+    renderChallenges();
+    startCountdown();
+  }
+
+  const playerSet = new Set();
+  for (const league in filters) {
+    for (const team in filters[league]) {
+      for (const season in filters[league][team]) {
+        filters[league][team][season].forEach(name => playerSet.add(name));
+      }
+    }
+  }
+
+  const datalist = document.getElementById('playerList');
+  [...playerSet].sort().forEach(name => {
+    let opt = document.createElement('option');
+    opt.value = name;
+    datalist.appendChild(opt);
+  });
+});
+</script>
+
+</body>
+</html>

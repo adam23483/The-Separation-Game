@@ -52,6 +52,8 @@ def extract_league_id_season_and_league(url):
 def get_stat_urls(base_urls, start_year, end_year, last_year):
     urls = []
     for base in base_urls:
+        start_year_loop = start_year 
+        end_year_loop = end_year
         urls.append(base)
 
         match = re.search(r"/(stats|playingtime)/", base)
@@ -59,11 +61,18 @@ def get_stat_urls(base_urls, start_year, end_year, last_year):
             continue
         section = match.group(1)
 
-        while start_year > last_year:
-            start_year -= 1
-            end_year -= 1
-            new_url = base.replace(f"/{section}/", f"/{start_year}-{end_year}/{section}/{start_year}-{end_year}-")
-            urls.append(new_url)
+        # Extract league name from the last part of the URL
+        base_parts = base.rstrip('/').split('/')
+        last_part = base_parts[-1]  # e.g., "La-Liga-Stats"
+        league_part = last_part.replace("-Stats", "")
+
+        while start_year_loop > last_year:
+            start_year_loop -= 1
+            end_year_loop -= 1
+            # Construct the historical URL
+            historical = f"{'/'.join(base_parts[:-2])}/{start_year_loop}-{end_year_loop}/{section}/{start_year_loop}-{end_year_loop}-{league_part}-Stats"
+            urls.append(historical)
+            print(historical)
     return urls
 
 # SCRAPE DATA
@@ -72,11 +81,20 @@ def scrape_players_data(league_urls):
     headers = {'user-agent': 'Mozilla/5.0'}
 
     for url in league_urls:
-        time.sleep(random.randint(5, 15))
-        response = requests.get(url, headers=headers)
-        if not response.ok:
-            print(f"Failed to retrieve {url}")
-            continue
+        time.sleep(random.randint(5, 10))
+        print(f"\n[INFO] Scraping: {url}")
+        for attempt in range(3):
+            try:
+                response = requests.get(url, headers=headers, timeout=15)
+                if not response.ok:
+                    raise Exception(f"Bad status code {response.status_code}")
+                break
+            except Exception as e:
+                print(f"[WARN] Attempt {attempt + 1} failed for {url}: {e}")
+                if attempt == 2:
+                    print(f"[ERROR] Skipping {url} after 3 attempts")
+                    continue
+                time.sleep(3)
 
         html = response.text.replace("<!--", "").replace("-->", "")
         soup = BeautifulSoup(html, "html5lib")
@@ -89,74 +107,80 @@ def scrape_players_data(league_urls):
 
         for table in tables:
             caption = table.find("caption")
-            if caption and "Player" in caption.get_text():
-                stats_rows = table.find_all("tr")
-                for row in stats_rows:
-                    stats = row.find_all("td")
-                    if not stats:
-                        continue
+            if not caption:
+                continue
 
-                    player_id = name = nation = age = position = team_name = team_id = None
-                    team_id = ""
+            caption_text = caption.get_text().lower()
+            if not any(key in caption_text for key in ["player", "stats", "playing time", "standard"]):
+                continue
 
-                    for stat in stats:
-                        stat_type = stat.get("data-stat")
+            stats_rows = table.find_all("tr")
+            for row in stats_rows:
+                stats = row.find_all("td")
+                if not stats:
+                    continue
 
-                        if stat_type == "player":
-                            name = stat.get_text()
-                            link = stat.find("a")
-                            if link:
-                                player_id = extract_player_id(link["href"])
+                player_id = name = nation = age = position = team_name = team_id = None
 
-                        elif stat_type == "team":
-                            team_name = stat.get_text()
-                            link = stat.find("a")
-                            if link:
-                                team_id = extract_team_id(link["href"])
+                for stat in stats:
+                    stat_type = stat.get("data-stat")
+                    if stat_type == "player":
+                        name = stat.get_text().strip()
+                        link = stat.find("a")
+                        if link:
+                            player_id = extract_player_id(link["href"])
+                    elif stat_type == "team":
+                        team_name = stat.get_text().strip()
+                        link = stat.find("a")
+                        if link:
+                            team_id = extract_team_id(link["href"])
+                    elif stat_type == "nationality":
+                        link = stat.find("a")
+                        if link:
+                            nation = extract_player_nation(link["href"])
+                    elif stat_type == "age":
+                        age = stat.get_text()[:2]
+                        age = int(age) if age.isdigit() else None
+                    elif stat_type == "position":
+                        position = get_full_position(stat.get_text())
 
-                        elif stat_type == "nationality":
-                            link = stat.find("a")
-                            if link:
-                                nation = extract_player_nation(link["href"])
+                if not player_id:
+                    continue
 
-                        elif stat_type == "age":
-                            age = stat.get_text()[:2]
-                            age = int(age) if age.isdigit() else None
+                # Create player if not exists
+                if player_id not in players_dict:
+                    players_dict[player_id] = {
+                        "player_info": {
+                            "name": name, "nation": nation, "age": age, "postions": position
+                        },
+                        "seasons_played": {}
+                    }
+                else:
+                    # Merge missing info
+                    pinfo = players_dict[player_id]["player_info"]
+                    if not pinfo["name"] and name:
+                        pinfo["name"] = name
+                    if not pinfo["nation"] and nation:
+                        pinfo["nation"] = nation
+                    if not pinfo["age"] and age:
+                        pinfo["age"] = age
+                    if not pinfo["postions"] and position:
+                        pinfo["postions"] = position
 
-                        elif stat_type == "position":
-                            position = get_full_position(stat.get_text())
+                # Add team/season info
+                if season not in players_dict[player_id]["seasons_played"]:
+                    players_dict[player_id]["seasons_played"][season] = {"teams": {}}
+                if team_name and team_id:
+                    players_dict[player_id]["seasons_played"][season]["teams"][team_name] = {
+                        "team_id": team_id,
+                        "league_id": league_id,
+                        "league_name": league_name
+                    }
 
-                    if player_id:
-                        if player_id not in players_dict:
-                            players_dict[player_id] = {
-                                "player_info": {
-                                    "name": name, "nation": nation, "age": age, "postions": position
-                                },
-                                "seasons_played": {}
-                            }
-                        else:
-                            # Fill missing info if any
-                            pinfo = players_dict[player_id]["player_info"]
-                            if not pinfo["name"] and name:
-                                pinfo["name"] = name
-                            if not pinfo["nation"] and nation:
-                                pinfo["nation"] = nation
-                            if not pinfo["age"] and age:
-                                pinfo["age"] = age
-                            if not pinfo["postions"] and position:
-                                pinfo["postions"] = position
-
-                        if season not in players_dict[player_id]["seasons_played"]:
-                            players_dict[player_id]["seasons_played"][season] = {"teams": {}}
-
-                        if team_name and team_id:
-                            players_dict[player_id]["seasons_played"][season]["teams"][team_name] = {
-                                "team_id": team_id,
-                                "league_id": league_id,
-                                "league_name": league_name
-                            }
+        print(f"[INFO] Players so far: {len(players_dict)}")
 
     return players_dict
+
 
 # PROCESS RAW TO STRUCTURED DATA
 def process_fbref_data(raw_data, output_path):
