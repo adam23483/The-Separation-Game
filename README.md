@@ -3,7 +3,7 @@
 
 A web-based soccer connection game where users link two professional footballers through shared teammates, based on real-world club and season history.
 
-![Gameplay Preview](https://github.com/adam23483/The-Separation-Game/blob/f44ae8eb2f84aece219f23a663e2462e3cc36ac6/Images/testing%20api.png)
+![Gameplay Preview](https://github.com/adam23483/The-Separation-Game/blob/9faa2533de7fbc3721b8cb512cea6a3dd3065236/Images/homepage.png)
 
 ---
 
