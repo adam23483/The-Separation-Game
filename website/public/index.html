@@ -4,6 +4,15 @@
   <meta charset="UTF-8">
   <title>The Separation Game</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in {
+      animation: fadeIn 0.5s ease-in-out;
+    }
+  </style>
 </head>
 <body class="p-6">
 
@@ -19,285 +28,156 @@
   </div>
 </header>
 
-<main class="max-w-2xl mx-auto bg-gray-800 p-6 rounded-lg">
-  <h2 class="text-2xl font-bold text-indigo-400 mb-4">🎯 Daily Connection Challenge</h2>
-  <div id="dailyLinks" class="bg-gray-900 p-4 rounded text-sm text-gray-300 mb-4">Loading challenges...</div>
-
-  <label class="block text-sm mb-2">Choose a challenge:</label>
-  <select id="challengeSelector" onchange="changeChallenge()" class="w-full mb-4 bg-gray-700 text-white rounded px-2 py-1"></select>
-
-  <p class="text-sm text-gray-400 mb-4">⏱ Time Left: <span id="challengeTimer" class="text-emerald-400 font-semibold">--:--:--</span></p>
-
-  <div class="grid grid-cols-3 gap-2 mb-4">
-    <select id="leagueFilter" onchange="onLeagueChange()" class="bg-gray-700 text-white rounded px-2 py-1">
-      <option value="">All Leagues</option>
-    </select>
-    <select id="teamFilter" onchange="onTeamChange()" class="bg-gray-700 text-white rounded px-2 py-1">
-      <option value="">All Teams</option>
-    </select>
-    <select id="seasonFilter" onchange="updatePlayerOptions()" class="bg-gray-700 text-white rounded px-2 py-1">
-      <option value="">All Seasons</option>
-    </select>
+<main class="max-w-5xl mx-auto bg-gray-800 p-6 rounded-lg">
+  <!-- Challenge Display -->
+  <div class="flex items-center justify-center gap-8 mb-8">
+    <div class="text-center">
+      <img id="playerAImg" src="" alt="Player A" class="w-24 h-24 object-cover rounded-full mx-auto mb-2 border-2 border-emerald-500">
+      <p id="playerAName" class="font-bold text-lg"></p>
+      <div id="playerATeams" class="text-sm text-gray-400"></div>
+    </div>
+    <span class="text-3xl font-bold text-indigo-300">→</span>
+    <div class="text-center">
+      <img id="playerBImg" src="" alt="Player B" class="w-24 h-24 object-cover rounded-full mx-auto mb-2 border-2 border-indigo-500">
+      <p id="playerBName" class="font-bold text-lg"></p>
+      <div id="playerBTeams" class="text-sm text-gray-400"></div>
+    </div>
   </div>
 
-  <input id="dailyPlayerInput" type="text" list="playerList" placeholder="Type player name..." class="w-full px-3 py-2 rounded bg-gray-900 border border-gray-600 placeholder-gray-400 text-white mb-3">
-  <datalist id="playerList"></datalist>
+  <!-- Current Path -->
+  <h2 class="text-2xl font-bold text-indigo-400 mb-4">🧠 Guided Path Mode</h2>
+  <p><strong>Current Path:</strong> <span id="guidedPathDisplay"></span></p>
 
-  <div class="flex gap-2 mb-4">
-    <button onclick="addToDailyPath()" class="bg-emerald-600 px-3 py-2 rounded">Add</button>
-    <button onclick="undoDailyPath()" class="bg-yellow-600 px-3 py-2 rounded">Undo</button>
-    <button onclick="resetDailyPath()" class="bg-red-600 px-3 py-2 rounded">Reset</button>
-  </div>
-
-  <p class="font-semibold">Current Path:</p>
-  <div id="dailyPathDisplay" class="min-h-[40px] font-bold text-lg text-emerald-300 mb-4">(Empty)</div>
-  <button onclick="submitDailyPath()" class="bg-indigo-600 px-5 py-2 rounded text-white">Submit Daily Path</button>
-
-  <div id="dailyScore" class="result-box mt-6 hidden text-left"></div>
+  <!-- Move Options -->
+  <div id="nextMoves" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-6"></div>
+  <p id="guidedFeedback" class="mt-6 text-lg font-bold text-emerald-400"></p>
 </main>
 
 <script>
-let filters = {};
-let dailyChallengePath = [];
-let samplePairs = [];
-let currentDailyPair = [];
-let selectedChallengeIndex = 0;
-let challengeExpiryTime = null;
-let countdownInterval = null;
+let guidedPath = [];
+let guidedPlayerB = '';
+let guidedScore = 100;
+let mistakes = 0;
+let startTime = 0;
+let randomPair = null;
 
-function populateFilters() {
-  const leagueFilter = document.getElementById('leagueFilter');
-  for (const league in filters) {
-    let opt = document.createElement('option');
-    opt.value = league;
-    opt.textContent = league;
-    leagueFilter.appendChild(opt);
-  }
-}
-
-function updatePlayerOptions() {
-  const league = document.getElementById('leagueFilter').value;
-  const team = document.getElementById('teamFilter').value;
-  const season = document.getElementById('seasonFilter').value;
-  const playerList = document.getElementById('playerList');
-  let playerSet = new Set();
-
-  for (const l in filters) {
-    if (league && l !== league) continue;
-    for (const t in filters[l]) {
-      if (team && t !== team) continue;
-      for (const s in filters[l][t]) {
-        if (season && s !== season) continue;
-        filters[l][t][s].forEach(p => playerSet.add(p));
-      }
+async function fetchChallengesAndStart() {
+    const res = await fetch('/daily_challenges');
+    const data = await res.json();
+    const pairs = data.pairs;
+    if (pairs.length === 0) {
+        alert("No daily challenges available.");
+        return;
     }
-  }
-
-  // Update player list
-  playerList.innerHTML = '';
-  Array.from(playerSet).sort().forEach(p => {
-    let opt = document.createElement('option');
-    opt.value = p;
-    playerList.appendChild(opt);
-  });
+    randomPair = pairs[Math.floor(Math.random() * pairs.length)];
+    startGuidedGame(randomPair.player_a.name, randomPair.player_b.name);
 }
 
-function updateTeamAndSeasonOptions(league, selectedTeam) {
-  const teamFilter = document.getElementById('teamFilter');
-  const seasonFilter = document.getElementById('seasonFilter');
+async function startGuidedGame(playerA, playerB) {
+    guidedPath = [playerA];
+    guidedPlayerB = playerB;
+    guidedScore = 100;
+    mistakes = 0;
+    startTime = Date.now();
+    document.getElementById('guidedFeedback').textContent = '';
+    updateGuidedDisplay();
 
-  const prevSelectedTeam = teamFilter.value;
-  const prevSelectedSeason = seasonFilter.value;
+    document.getElementById('playerAName').textContent = playerA;
+    document.getElementById('playerBName').textContent = playerB;
 
-  teamFilter.innerHTML = '<option value="">All Teams</option>';
-  seasonFilter.innerHTML = '<option value="">All Seasons</option>';
+    document.getElementById('playerAImg').src = `https://cdn.example.com/players/${playerA.toLowerCase().replace(/\s/g, "_")}.jpg`;
+    document.getElementById('playerBImg').src = `https://cdn.example.com/players/${playerB.toLowerCase().replace(/\s/g, "_")}.jpg`;
 
-  if (league) {
-    for (const t in filters[league]) {
-      let opt = document.createElement('option');
-      opt.value = t;
-      opt.textContent = t;
-      if (t === prevSelectedTeam) opt.selected = true;
-      teamFilter.appendChild(opt);
+    const formatLatestTeam = (teams) => {
+        if (!teams.length) return "No team info";
+        const t = teams[teams.length - 1];
+        return `${t.team} (${t.league}, ${t.season_range})`;
+    };
+
+    document.getElementById('playerATeams').innerHTML = formatLatestTeam(randomPair.player_a.teams);
+    document.getElementById('playerBTeams').innerHTML = formatLatestTeam(randomPair.player_b.teams);
+
+    await fetchNextMoves();
+}
+
+function updateGuidedDisplay() {
+    document.getElementById('guidedPathDisplay').textContent = guidedPath.join(' → ');
+}
+
+async function fetchNextMoves() {
+    const response = await fetch('/guided_next_moves', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_path: guidedPath, player_b: guidedPlayerB })
+    });
+    const data = await response.json();
+    const container = document.getElementById('nextMoves');
+    container.innerHTML = '';
+
+    if (data.error) {
+        alert(data.error);
+        return;
     }
-  }
 
-  const activeTeam = selectedTeam || teamFilter.value;
+    data.options.forEach(option => {
+        const card = document.createElement('div');
+        card.className = 'bg-gray-700 rounded-lg p-4 hover:bg-gray-600 cursor-pointer text-center fade-in';
+        card.onclick = () => selectNextMove(option);
 
-  if (league && activeTeam && filters[league][activeTeam]) {
-    for (const s in filters[league][activeTeam]) {
-      let opt = document.createElement('option');
-      opt.value = s;
-      opt.textContent = s;
-      if (s === prevSelectedSeason) opt.selected = true;
-      seasonFilter.appendChild(opt);
+        const img = document.createElement('img');
+        img.src = `https://cdn.example.com/players/${option.name.toLowerCase().replace(/\s/g, "_")}.jpg`;
+        img.alt = option.name;
+        img.className = 'w-20 h-20 rounded-full mx-auto mb-2 object-cover border-2 border-gray-400';
+
+        const name = document.createElement('p');
+        name.textContent = option.name;
+        name.className = 'font-bold text-md mb-1';
+
+        const teamList = document.createElement('div');
+        teamList.className = 'text-sm text-gray-300';
+        teamList.innerHTML = (option.team_history || []).slice(-5).map(
+            t => `${t.team} (${t.league}, ${t.season_range})`
+        ).join("<br>") || `${option.team} (${option.league}, ${option.season_range})`;
+
+        card.appendChild(img);
+        card.appendChild(name);
+        card.appendChild(teamList);
+        container.appendChild(card);
+    });
+}
+
+async function selectNextMove(option) {
+    const container = document.getElementById('nextMoves');
+    const feedback = document.getElementById('guidedFeedback');
+
+    if (option.is_correct) {
+        guidedPath.push(option.name);
+        updateGuidedDisplay();
+        if (option.name === guidedPlayerB) {
+            const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+            const scoreLoss = (mistakes * 10) + (guidedPath.length - 2) * 5 + timeTaken * 0.1;
+            const finalScore = Math.max(0, guidedScore - scoreLoss);
+            feedback.textContent = `🎉 Completed! Score: ${finalScore.toFixed(2)} (Mistakes: ${mistakes}, Links: ${guidedPath.length - 1}, Time: ${timeTaken}s)`;
+            container.innerHTML = '';
+        } else {
+            await fetchNextMoves();
+        }
+    } else {
+        mistakes += 1;
+        guidedScore -= 10;
+        feedback.textContent = `❌ Nope! ${option.name} is not on the path.`;
+
+        const cards = container.querySelectorAll('div');
+        cards.forEach(card => {
+            if (card.textContent.includes(option.name)) {
+                card.classList.add('opacity-50', 'line-through', 'cursor-not-allowed');
+                card.onclick = null;
+            }
+        });
     }
-  }
 }
 
-function onLeagueChange() {
-  const league = document.getElementById('leagueFilter').value;
-  updateTeamAndSeasonOptions(league, null);
-  updatePlayerOptions();
-}
-
-function onTeamChange() {
-  const league = document.getElementById('leagueFilter').value;
-  const team = document.getElementById('teamFilter').value;
-  updateTeamAndSeasonOptions(league, team);
-  updatePlayerOptions();
-}
-
-function renderPairs() {
-  const container = document.getElementById('dailyLinks');
-  const selector = document.getElementById('challengeSelector');
-  container.innerHTML = '';
-  selector.innerHTML = '';
-
-  samplePairs.forEach((pair, idx) => {
-    const pa = pair.player_a;
-    const pb = pair.player_b;
-
-    const formatTeams = teams => teams.map(t =>
-      `<li>${t.team} - ${t.league} (${t.season_range})</li>`
-    ).join('');
-
-    container.innerHTML += `
-      <div class="border-b border-gray-700 pb-4 mb-2">
-        <p class="font-bold text-indigo-300">Challenge ${idx + 1}</p>
-        <p class="font-bold text-indigo-300 text-xl">${pa.name} ↔ ${pb.name}</p>
-        <div class="mt-2">
-          <p class="font-semibold">${pa.name}:</p>
-          <ul class="ml-4 list-disc">${formatTeams(pa.teams)}</ul>
-          <p class="font-semibold mt-2">${pb.name}:</p>
-          <ul class="ml-4 list-disc">${formatTeams(pb.teams)}</ul>
-        </div>
-      </div>
-    `;
-
-    let opt = document.createElement('option');
-    opt.value = idx;
-    opt.textContent = `Challenge ${idx + 1}`;
-    selector.appendChild(opt);
-  });
-
-  changeChallenge();
-}
-
-function startGlobalCountdown() {
-  clearInterval(countdownInterval);
-  countdownInterval = setInterval(() => {
-    const nowUTC = new Date(new Date().toUTCString());
-    const expiryUTC = new Date(challengeExpiryTime);
-    let diff = Math.max(0, expiryUTC - nowUTC);
-
-    const h = String(Math.floor(diff / 3600000)).padStart(2, '0');
-    const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
-    const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
-
-    document.getElementById('challengeTimer').textContent = `${h}:${m}:${s}`;
-
-    if (diff <= 0) {
-      clearInterval(countdownInterval);
-      alert("Daily Challenge Expired. Reloading...");
-      location.reload();
-    }
-  }, 1000);
-}
-
-function changeChallenge() {
-  selectedChallengeIndex = +document.getElementById('challengeSelector').value;
-  const pathStr = samplePairs[selectedChallengeIndex].path;
-  const names = pathStr.split(' → ').map(s => s.split(' (')[0]);
-  currentDailyPair = [names[0], names[names.length - 1]];
-  resetDailyPath();
-}
-
-function addToDailyPath() {
-  const name = document.getElementById('dailyPlayerInput').value.trim();
-  if (dailyChallengePath.length >= 3) return alert('Up to 3 players only.');
-  if (name && !dailyChallengePath.includes(name)) {
-    dailyChallengePath.push(name);
-    updateDailyDisplay();
-  }
-  document.getElementById('dailyPlayerInput').value = '';
-}
-
-function undoDailyPath() {
-  dailyChallengePath.pop();
-  updateDailyDisplay();
-}
-
-function resetDailyPath() {
-  dailyChallengePath = [];
-  updateDailyDisplay();
-}
-
-function updateDailyDisplay() {
-  const div = document.getElementById('dailyPathDisplay');
-  div.textContent = dailyChallengePath.length
-    ? [currentDailyPair[0], ...dailyChallengePath, currentDailyPair[1]].join(' → ')
-    : '(Empty)';
-}
-
-function submitDailyPath() {
-  if (dailyChallengePath.length !== 3) return alert('Submit exactly 3 players.');
-  const path = [currentDailyPair[0], ...dailyChallengePath, currentDailyPair[1]];
-
-  fetch('/score_challenge', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      player_a: path[0],
-      player_b: path[path.length - 1],
-      path: path.join(' → '),
-      time: 0
-    })
-  })
-  .then(res => res.json())
-  .then(data => {
-    const scoreDiv = document.getElementById('dailyScore');
-    scoreDiv.classList.remove('hidden');
-    const breakdown = data.link_breakdown.map(l =>
-      `<li>${l.valid ? '✅' : '❌'} ${l.from} → ${l.to}</li>`
-    ).join('');
-    scoreDiv.innerHTML = `
-      <p><strong>Your Path:</strong> ${data.cleaned_path.join(' → ')}</p>
-      <p>Links: ${data.user_links_count}</p>
-      <p>Time: ${data.time_count}s</p>
-      <p class="text-emerald-400 font-bold text-lg">Score: ${data.final_score}</p>
-      <ul class="ml-4 list-disc text-sm">${breakdown}</ul>
-    `;
-  });
-}
-
-window.addEventListener('DOMContentLoaded', async () => {
-  try {
-    console.log("Fetching filters and daily challenges...");
-    const [filterRes, challengeRes] = await Promise.all([
-      fetch('/filters'),
-      fetch('/daily_challenges')
-    ]);
-    console.log("Received responses from APIs.");
-
-    filters = await filterRes.json();
-    const challengeData = await challengeRes.json();
-
-    samplePairs = challengeData.pairs;
-    challengeExpiryTime = challengeData.expires;
-
-    console.log("Challenge expires at:", challengeExpiryTime);
-
-    populateFilters();
-    updatePlayerOptions();
-    renderPairs();
-    startGlobalCountdown();
-
-  } catch (err) {
-    console.error('Failed to load filters or challenges:', err);
-    document.getElementById('dailyLinks').innerHTML = '<p>Error loading challenges.</p>';
-  }
-});
+fetchChallengesAndStart();
 </script>
 
 </body>
