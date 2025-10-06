@@ -1,15 +1,19 @@
 from flask import Flask, request, send_from_directory, jsonify
 from flask_cors import CORS
-from game_logic import initialize_game_data, find_player_connections, display_path_details
-from daily_challenge_manager import get_challenges
+from game_logic import initialize_game_data, find_player_connections, display_path_details, find_k_paths
+from daily_challenge_manager import get_challenges, DAILY_FILE
 from datetime import datetime, timedelta
 import json 
 import mysql.connector
 import random
 import os
+import hashlib
+
 
 app = Flask(__name__, static_folder='../website/public', static_url_path='')
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
+# Guided mode in-memory cache
 
 # Cache for game data and daily challenges
 _game_cache = {
@@ -17,11 +21,11 @@ _game_cache = {
     "player_meta": None,
     "name_to_id": None
 }
+_guided_cache = {}
 
-daily_challenge_cache = {
-    "pairs": [],
-    "expires": None
-}
+def _generate_guided_cache_key(current_path, player_b):
+    base = json.dumps({"path": current_path, "target": player_b}, sort_keys=True)
+    return hashlib.md5(base.encode()).hexdigest()
 
 def get_game_data():
     if _game_cache["graph"] is None:
@@ -30,6 +34,35 @@ def get_game_data():
         _game_cache["player_meta"] = player_meta
         _game_cache["name_to_id"] = name_to_id
     return _game_cache["graph"], _game_cache["player_meta"], _game_cache["name_to_id"]
+
+@app.route('/guided_next_moves', methods=['POST'])
+def guided_next_moves():
+    data = request.get_json()
+    current_path = data.get('current_path', [])
+    player_b = data.get('player_b', '').lower().strip()
+
+    if not current_path or not player_b:
+        return jsonify({"error": "Invalid input"}), 400
+
+    step_index = len(current_path) - 1  # Each move corresponds to a step
+    try:
+        with open(DAILY_FILE, "r") as f:
+            daily_data = json.load(f)
+    except Exception as e:
+        return jsonify({"error": "Could not load challenge data."}), 500
+
+    # Locate the challenge that matches this player A → player B
+    for pair in daily_data["pairs"]:
+        if (pair["player_a"]["name"].lower() == current_path[0].lower() and
+            pair["player_b"]["name"].lower() == player_b):
+
+            guided_steps = pair.get("guided_steps", [])
+            if step_index < len(guided_steps):
+                return jsonify({"options": guided_steps[step_index]["options"]})
+            else:
+                return jsonify({"error": "No more steps available."}), 404
+
+    return jsonify({"error": "No matching challenge found."}), 404
 
 
 @app.route('/connect', methods=['POST'])
